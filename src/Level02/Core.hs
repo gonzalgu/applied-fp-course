@@ -30,8 +30,12 @@ mkResponse
   -> ContentType
   -> LBS.ByteString
   -> Response
-mkResponse =
-  error "mkResponse not implemented"
+mkResponse st ct s =
+  case fromEnum st of
+    200 -> resp200 ct s 
+    404 -> resp404 ct s
+    400 -> resp400 ct s
+    _         -> error "unhandled status"
 
 resp200
   :: ContentType
@@ -44,7 +48,7 @@ resp404
   :: ContentType
   -> LBS.ByteString
   -> Response
-resp404 =
+resp404 = responseLBS
   error "resp404 not implemented"
 
 resp400

@@ -4,7 +4,7 @@ module Level01.Core (runApp) where
 
 import           Network.Wai              (Application, Request, Response,
                                            ResponseReceived, responseLBS)
-import           Network.Wai.Handler.Warp (run)
+import           Network.Wai.Handler.Warp (run,Port)
 
 import           Network.HTTP.Types       (status200)
 
@@ -33,12 +33,16 @@ app
   -> (Response -> IO ResponseReceived)
   -> IO ResponseReceived
 app _ cb =
-  error "Application not implemented"
+  cb $ responseLBS status200 [] "Hello, World!"
+  --error "Application not implemented"
 
 -- We keep this main function here as it is useful to build your application as
 -- a library. The reasoning behind this is that when you come to do your
 -- testing, you'll be able to import the entire application as a library without
 -- needing to worry about any initialisation code you've buried in your
 -- executable Main.hs.
+port :: Port
+port = 7894
+
 runApp :: IO ()
-runApp = run undefined undefined
+runApp = run port app
