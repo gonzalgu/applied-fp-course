@@ -14,9 +14,9 @@ import qualified Data.ByteString.Lazy     as LBS
 import           Data.Either              (either)
 
 import           Data.Text                (Text)
-import           Data.Text.Encoding       (decodeUtf8)
+import           Data.Text.Encoding       (decodeUtf8,encodeUtf8)
 
-import           Level02.Types            (ContentType, Error, RqType,
+import           Level02.Types            (ContentType, Error(Err), RqType(AddRq, ViewRq, ListRq),
                                            mkCommentText, mkTopic,
                                            renderContentType)
 
@@ -41,22 +41,22 @@ resp200
   :: ContentType
   -> LBS.ByteString
   -> Response
-resp200 =
-  error "resp200 not implemented"
+resp200 ct s = responseLBS status200 [(hContentType, renderContentType ct)] s 
+--  error "resp200 not implemented"
 
 resp404
   :: ContentType
   -> LBS.ByteString
   -> Response
-resp404 = responseLBS
-  error "resp404 not implemented"
+resp404 ct s = responseLBS status404 [(hContentType, renderContentType ct)] s
+--   error "resp404 not implemented"
 
 resp400
   :: ContentType
   -> LBS.ByteString
   -> Response
-resp400 =
-  error "resp400 not implemented"
+resp400 ct s = responseLBS status400 [(hContentType, renderContentType ct)] s
+--  error "resp400 not implemented"
 
 -- |----------------------------------------------------------------------------------
 -- These next few functions will take raw request information and construct         --
@@ -72,8 +72,9 @@ mkAddRequest
   :: Text
   -> LBS.ByteString
   -> Either Error RqType
-mkAddRequest =
-  error "mkAddRequest not implemented"
+mkAddRequest top comm = do
+  topic <- mkTopic top 
+  return $ AddRq topic (lazyByteStringToStrictText comm)
   where
     -- This is a helper function to assist us in going from a Lazy ByteString, to a Strict Text
     lazyByteStringToStrictText =
@@ -82,13 +83,14 @@ mkAddRequest =
 mkViewRequest
   :: Text
   -> Either Error RqType
-mkViewRequest =
-  error "mkViewRequest not implemented"
+mkViewRequest topicText = do
+  topic <- mkTopic topicText
+  return $ ViewRq topic
 
 mkListRequest
   :: Either Error RqType
-mkListRequest =
-  error "mkListRequest not implemented"
+mkListRequest = Right ListRq
+
 
 -- |----------------------------------
 -- end of RqType creation functions --
@@ -97,8 +99,9 @@ mkListRequest =
 mkErrorResponse
   :: Error
   -> Response
-mkErrorResponse =
-  error "mkErrorResponse not implemented"
+mkErrorResponse (Err err) = undefined
+ responseLBS status404 [] (textToLBString err)
+  where textToLBString = LBS.fromStrict . encodeUtf8
 
 -- | Use our ``RqType`` helpers to write a function that will take the input
 -- ``Request`` from the Wai library and turn it into something our application

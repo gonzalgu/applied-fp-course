@@ -68,7 +68,7 @@ data RqType
 -- useful to be able to be descriptive about what went wrong.
 
 -- Fill in the error constructors as you need them.
-data Error = Err String deriving Show
+data Error = Err Text deriving Show
 
 
 -- Provide the constructors for a sum type to specify the `ContentType` Header,
