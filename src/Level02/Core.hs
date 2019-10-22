@@ -1,13 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Level02.Core (runApp, app) where
+module Level02.Core 
+-- (runApp, app) 
+where
 
 import           Network.Wai              (Application, Request, Response,
                                            pathInfo, requestMethod, responseLBS,
-                                           strictRequestBody)
+                                           strictRequestBody, queryString, rawQueryString)
 import           Network.Wai.Handler.Warp (run)
 
 import           Network.HTTP.Types       (Status, hContentType, status200,
-                                           status400, status404)
+                                           status400, status404, StdMethod(GET, POST), renderQuery)
+
+import           Network.HTTP.Types.Method                                            
 
 import qualified Data.ByteString.Lazy     as LBS
 
@@ -16,7 +20,7 @@ import           Data.Either              (either)
 import           Data.Text                (Text)
 import           Data.Text.Encoding       (decodeUtf8,encodeUtf8)
 
-import           Level02.Types            (ContentType, Error(Err), RqType(AddRq, ViewRq, ListRq),
+import           Level02.Types            (ContentType(Plain,Json), Error(Err), RqType(AddRq, ViewRq, ListRq),
                                            mkCommentText, mkTopic,
                                            renderContentType)
 
@@ -35,7 +39,7 @@ mkResponse st ct s =
     200 -> resp200 ct s 
     404 -> resp404 ct s
     400 -> resp400 ct s
-    _         -> error "unhandled status"
+    _   -> error "unhandled status"
 
 resp200
   :: ContentType
@@ -99,20 +103,44 @@ mkListRequest = Right ListRq
 mkErrorResponse
   :: Error
   -> Response
-mkErrorResponse (Err err) = undefined
- responseLBS status404 [] (textToLBString err)
+mkErrorResponse (Err err) = responseLBS status404 [] (textToLBString err)
   where textToLBString = LBS.fromStrict . encodeUtf8
 
 -- | Use our ``RqType`` helpers to write a function that will take the input
 -- ``Request`` from the Wai library and turn it into something our application
 -- cares about.
+
+{-
+# To comment on a given <topic>
+POST /<topic>/add
+
+# To view all the comments on a given <topic>
+GET /<topic>/view
+
+# To list all the current topics
+GET /list
+-}
+
 mkRequest
   :: Request
   -> IO ( Either Error RqType )
-mkRequest =
+mkRequest req = 
+  case (parseMethod $ requestMethod req, pathInfo req) of 
+    (Right POST, [topic,"add"] )  ->  return $ mkAddRequest topic "" --(rawQueryString req)     
+
+    (Right GET,  [topic, "view"])  -> return $ mkViewRequest topic
+    (Right GET,  ["list"]      )  -> return  $ mkListRequest
+    
+    _          -> return  $ Left $ Err "non recognized method."
+ 
+{-
+  do
+  putStrLn $ show req
+  return $ Left $ Err "not implemented"
+-}
   -- Remembering your pattern-matching skills will let you implement the entire
   -- specification in this function.
-  error "mkRequest not implemented"
+  --error "mkRequest not implemented"
 
 -- | If we find that we need more information to handle a request, or we have a
 -- new type of request that we'd like to handle then we update the ``RqType``
@@ -128,14 +156,28 @@ mkRequest =
 handleRequest
   :: RqType
   -> Either Error Response
-handleRequest =
-  error "handleRequest not implemented"
+handleRequest _ = Right $ mkResponse status404 Plain "not implemented yet."
+  --error "handleRequest not implemented"
 
 -- | Reimplement this function using the new functions and ``RqType`` constructors as a guide.
+-- Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 app
   :: Application
-app =
-  error "app not reimplemented"
+app request handler = do
+  rq <- mkRequest request
+  case rq of
+    Right r -> 
+      case handleRequest r of
+        Right resp -> handler resp
+        Left err    -> handler $ mkErrorResponse err
+    Left err -> handler $ mkErrorResponse err
+        
+  --return rq >>= handleRequest
+
+
+
+
+  --error "app not reimplemented"
 
 runApp :: IO ()
 runApp = run 3000 app
