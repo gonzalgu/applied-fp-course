@@ -50,7 +50,7 @@ main :: IO ()
 main = defaultMain $ testGroup "Applied FP Course - Tests"
 
   [ testWai Core.app "List Topics" $
-      get "fudge/view" >>= assertStatus' HTTP.status200
+      get "list" >>= assertStatus' HTTP.status200
 
   , testWai Core.app "Empty Input" $ do
       resp <- post "fudge/add" ""
@@ -61,5 +61,8 @@ main = defaultMain $ testGroup "Applied FP Course - Tests"
       resp <- post "fudge/add" "some body content"
       assertStatus' HTTP.status200 resp
       assertBody "not implemented yet." resp
+
+  , testWai Core.app "Get topic" $
+      get "fudge/view" >>= assertStatus' HTTP.status200
      
   ]
