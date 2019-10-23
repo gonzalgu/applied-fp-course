@@ -5,7 +5,7 @@ where
 
 import           Network.Wai              (Application, Request, Response,
                                            pathInfo, requestMethod, responseLBS,
-                                           strictRequestBody, queryString, rawQueryString)
+                                           strictRequestBody, queryString, rawQueryString, requestBodyLength, strictRequestBody)
 import           Network.Wai.Handler.Warp (run)
 
 import           Network.HTTP.Types       (Status, hContentType, status200,
@@ -21,7 +21,7 @@ import           Data.Text                (Text)
 import           Data.Text.Encoding       (decodeUtf8,encodeUtf8)
 
 import           Level02.Types            (ContentType(Plain,Json), Error(Err), RqType(AddRq, ViewRq, ListRq),
-                                           mkCommentText, mkTopic,
+                                           mkCommentText, mkTopic,CommentText(..), getCommentText,
                                            renderContentType)
 
 -- |-------------------------------------------|
@@ -46,21 +46,21 @@ resp200
   -> LBS.ByteString
   -> Response
 resp200 ct s = responseLBS status200 [(hContentType, renderContentType ct)] s 
---  error "resp200 not implemented"
+
 
 resp404
   :: ContentType
   -> LBS.ByteString
   -> Response
 resp404 ct s = responseLBS status404 [(hContentType, renderContentType ct)] s
---   error "resp404 not implemented"
+
 
 resp400
   :: ContentType
   -> LBS.ByteString
   -> Response
 resp400 ct s = responseLBS status400 [(hContentType, renderContentType ct)] s
---  error "resp400 not implemented"
+
 
 -- |----------------------------------------------------------------------------------
 -- These next few functions will take raw request information and construct         --
@@ -78,11 +78,14 @@ mkAddRequest
   -> Either Error RqType
 mkAddRequest top comm = do
   topic <- mkTopic top 
-  return $ AddRq topic (lazyByteStringToStrictText comm)
+  comment <- mkCommentText (lazyByteStringToStrictText comm)
+    
+  return $ AddRq topic (getCommentText comment)
   where
     -- This is a helper function to assist us in going from a Lazy ByteString, to a Strict Text
     lazyByteStringToStrictText =
       decodeUtf8 . LBS.toStrict
+
 
 mkViewRequest
   :: Text
@@ -103,7 +106,7 @@ mkListRequest = Right ListRq
 mkErrorResponse
   :: Error
   -> Response
-mkErrorResponse (Err err) = responseLBS status404 [] (textToLBString err)
+mkErrorResponse (Err err) = responseLBS status400 [] (textToLBString err)
   where textToLBString = LBS.fromStrict . encodeUtf8
 
 -- | Use our ``RqType`` helpers to write a function that will take the input
@@ -126,18 +129,16 @@ mkRequest
   -> IO ( Either Error RqType )
 mkRequest req = 
   case (parseMethod $ requestMethod req, pathInfo req) of 
-    (Right POST, [topic,"add"] )  ->  return $ mkAddRequest topic "" --(rawQueryString req)     
+    (Right POST, [topic,"add"] )  ->  do
+      requestBody <- strictRequestBody req
+      return $ mkAddRequest topic requestBody      
 
     (Right GET,  [topic, "view"])  -> return $ mkViewRequest topic
     (Right GET,  ["list"]      )  -> return  $ mkListRequest
     
     _          -> return  $ Left $ Err "non recognized method."
- 
-{-
-  do
-  putStrLn $ show req
-  return $ Left $ Err "not implemented"
--}
+
+
   -- Remembering your pattern-matching skills will let you implement the entire
   -- specification in this function.
   --error "mkRequest not implemented"
@@ -156,28 +157,26 @@ mkRequest req =
 handleRequest
   :: RqType
   -> Either Error Response
-handleRequest _ = Right $ mkResponse status404 Plain "not implemented yet."
-  --error "handleRequest not implemented"
+handleRequest _ = Right $ mkResponse status200 Plain "not implemented yet."
 
 -- | Reimplement this function using the new functions and ``RqType`` constructors as a guide.
 -- Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 app
   :: Application
 app request handler = do
+  putStrLn $ "request: " ++ show request
   rq <- mkRequest request
-  case rq of
-    Right r -> 
-      case handleRequest r of
-        Right resp -> handler resp
-        Left err    -> handler $ mkErrorResponse err
-    Left err -> handler $ mkErrorResponse err
+  let handleError = handler . mkErrorResponse
+  let response =  case rq of
+                    Right r  -> either handleError handler (handleRequest r)
+                    Left err -> handleError err
+  rsp <- response
+--  putStrLn $ "response: " ++ show rsp
+  return rsp
+      
         
-  --return rq >>= handleRequest
-
-
-
-
-  --error "app not reimplemented"
 
 runApp :: IO ()
-runApp = run 3000 app
+runApp = do
+  putStrLn "server started..."
+  run 3000 app

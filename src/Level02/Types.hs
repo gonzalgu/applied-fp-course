@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-dodgy-exports #-}
 module Level02.Types
   ( Topic
-  , CommentText
+  , CommentText(..)
   , ContentType (..)
   , RqType (..)
   , Error (..)
@@ -126,14 +126,14 @@ mkCommentText
   :: Text
   -> Either Error CommentText
 mkCommentText c 
-  | T.null c  = Left $ Err "empty comment"
+  | T.null c  = Left $ Err "Empty Comment Text"
   | otherwise = Right $ CommentText c
-  --error "mkCommentText not implemented"
+
 
 getCommentText
   :: CommentText
   -> Text
 getCommentText (CommentText c) = c
---  error "getCommentText not implemented"
+
 
 ---- Go to `src/Level02/Core.hs` next

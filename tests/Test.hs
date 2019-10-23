@@ -56,4 +56,10 @@ main = defaultMain $ testGroup "Applied FP Course - Tests"
       resp <- post "fudge/add" ""
       assertStatus' HTTP.status400 resp
       assertBody "Empty Comment Text" resp
+
+  , testWai Core.app "Add with input" $ do
+      resp <- post "fudge/add" "some body content"
+      assertStatus' HTTP.status200 resp
+      assertBody "not implemented yet." resp
+     
   ]
