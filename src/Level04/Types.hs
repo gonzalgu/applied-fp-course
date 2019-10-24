@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -32,7 +33,7 @@ import qualified Data.Time.Format           as TF
 import           Waargonaut.Encode          (Encoder)
 import qualified Waargonaut.Encode          as E
 
-import           Level04.DB.Types           (DBComment)
+import           Level04.DB.Types           (DBComment(..))
 
 -- | Notice how we've moved these types into their own modules. It's cheap and
 -- easy to add modules to carve out components in a Haskell application. So
@@ -59,6 +60,9 @@ data Comment = Comment
   }
   deriving Show
 
+getCommentId :: CommentId -> Int
+getCommentId (CommentId x) = x
+
 -- | We're going to write the JSON encoder for our `Comment` type. We'll need to
 -- consult the documentation in the 'Waargonaut.Encode' module to find the
 -- relevant functions and instructions on how to use them:
@@ -66,8 +70,13 @@ data Comment = Comment
 -- 'https://hackage.haskell.org/package/waargonaut/docs/Waargonaut-Encode.html'
 --
 encodeComment :: Applicative f => Encoder f Comment
-encodeComment =
-  error "Comment JSON encoder not implemented"
+encodeComment = E.mapLikeObj $ \comment ->
+  E.atKey' "commentId" E.int (getCommentId . commentId $ comment) .
+  E.atKey' "commentTopic" E.text (getTopic . commentTopic $ comment) .
+  E.atKey' "commentBody" E.text (getCommentText . commentBody $ comment) .
+  E.atKey' "commentTime" encodeISO8601DateTime (commentTime comment)
+  
+--  error "Comment JSON encoder not implemented"
   -- Tip: Use the 'encodeISO8601DateTime' to handle the UTCTime for us.
 
 -- | For safety we take our stored `DBComment` and try to construct a `Comment`
@@ -77,8 +86,14 @@ encodeComment =
 fromDBComment
   :: DBComment
   -> Either Error Comment
-fromDBComment =
-  error "fromDBComment not yet implemented"
+fromDBComment DBComment{ dbCommentId, dbCommentTopic, dbCommentBody, dbCommentTime}=
+  do
+    topic <- mkTopic dbCommentTopic
+    commentBody <- mkCommentText dbCommentBody
+    return $ Comment (CommentId dbCommentId) topic commentBody dbCommentTime
+    
+--  Right $ Comment (CommentId dbCommentId) (mkTopic dbCommentTopic) 
+--  error "fromDBComment not yet implementd"
 
 data RqType
   = AddRq Topic CommentText

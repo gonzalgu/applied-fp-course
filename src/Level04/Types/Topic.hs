@@ -60,5 +60,11 @@ getTopic (Topic t) =
 -- for this level.
 --
 encodeTopic :: Applicative f => Encoder f Topic
-encodeTopic = -- Try using 'contramap' and 'E.text'
-  error "topic JSON encoder not implemented"
+encodeTopic = contramap getTopic E.text
+
+--  error "topic JSON encoder not implemented"
+-- E.text :: Applicative f => Encoder f Text
+-- contramap :: Contravariant f => (a -> b) -> f b -> f a
+-- getTopic :: Topic -> Text
+
+-- contramap getTopic :: Contravariant f => f Text -> f Topic
