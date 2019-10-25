@@ -40,6 +40,7 @@ import           Level04.Types                      (ContentType (JSON, PlainTex
                                                      RqType (AddRq, ListRq, ViewRq),
                                                      mkCommentText, mkTopic,
                                                      renderContentType)
+import Level04.Types.Topic                                                      
 
 -- Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -61,7 +62,7 @@ runApp = do
     Left err -> 
       putStrLn $ show err
     -}
-      
+
   --error "runApp needs re-implementing"
 
 -- We need to complete the following steps to prepare our app requirements:
@@ -76,7 +77,7 @@ prepareAppReqs
 prepareAppReqs = do
     firstAppDb <- DB.initDB . dbFilePath $ firstAppConfig
     return $ either (Left . DBInitErr) (Right) firstAppDb
-
+    --return $ bimap DBInitErr id firstAppDb
   --error "prepareAppReqs not implemented"
 
 -- | Some helper functions to make our lives a little more DRY.
@@ -156,10 +157,16 @@ handleRequest
   -> IO (Either Error Response)
 handleRequest _db (AddRq _ _) =
   (resp200 PlainText "Success" <$) <$> error "AddRq handler not implemented"
-handleRequest _db (ViewRq _)  =
-  error "ViewRq handler not implemented"
-handleRequest _db ListRq      =
-  error "ListRq handler not implemented"
+handleRequest _db (ViewRq topic)  = do
+  comments <- DB.getComments _db topic
+  return $ second (resp200Json (E.list encodeComment)) comments
+  --error "ViewRq handler not implemented"
+handleRequest _db ListRq      = do
+  topics <- DB.getTopics _db
+  return $ either Left (Right . resp200Json (E.list encodeTopic)) topics
+  --return $ second (resp200Json (E.list encodeTopic)) topics
+  --return . Right $ resp200Json (E.list encodeTopic) topics
+  --error "ListRq handler not implemented"
 
 mkRequest
   :: Request
