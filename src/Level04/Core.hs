@@ -155,8 +155,12 @@ handleRequest
   :: DB.FirstAppDB
   -> RqType
   -> IO (Either Error Response)
-handleRequest _db (AddRq _ _) =
-  (resp200 PlainText "Success" <$) <$> error "AddRq handler not implemented"
+handleRequest _db (AddRq topic commentText) = do
+  res <- addCommentToTopic _db topic commentText 
+  return $ second (resp200 PlainText "Success") res
+
+  --(resp200 PlainText "Success" <$) <$> error "AddRq handler not implemented"
+
 handleRequest _db (ViewRq topic)  = do
   comments <- DB.getComments _db topic
   return $ second (resp200Json (E.list encodeComment)) comments
