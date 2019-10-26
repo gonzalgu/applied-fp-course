@@ -38,9 +38,10 @@ import qualified Level04.DB                         as DB
 import           Level04.Types                      (ContentType (JSON, PlainText),
                                                      Error (EmptyCommentText, EmptyTopic, UnknownRoute),
                                                      RqType (AddRq, ListRq, ViewRq),
-                                                     mkCommentText, mkTopic,
+                                                     mkCommentText, mkTopic,encodeComment,
                                                      renderContentType)
-import Level04.Types.Topic                                                      
+import Level04.Types.Topic
+import Data.Bifunctor
 
 -- Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -55,15 +56,6 @@ runApp = do
 
   res <- prepareAppReqs
   either (putStrLn . show) (run 3000 . app) res
-  {-
-  case res of
-    Right dbFirstApp -> 
-      run 3000 (app dbFirstApp)
-    Left err -> 
-      putStrLn $ show err
-    -}
-
-  --error "runApp needs re-implementing"
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -76,9 +68,7 @@ prepareAppReqs
   :: IO ( Either StartUpError DB.FirstAppDB )
 prepareAppReqs = do
     firstAppDb <- DB.initDB . dbFilePath $ firstAppConfig
-    return $ either (Left . DBInitErr) (Right) firstAppDb
-    --return $ bimap DBInitErr id firstAppDb
-  --error "prepareAppReqs not implemented"
+    return $ bimap DBInitErr id firstAppDb
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -156,21 +146,17 @@ handleRequest
   -> RqType
   -> IO (Either Error Response)
 handleRequest _db (AddRq topic commentText) = do
-  res <- addCommentToTopic _db topic commentText 
-  return $ second (resp200 PlainText "Success") res
-
-  --(resp200 PlainText "Success" <$) <$> error "AddRq handler not implemented"
+  res <- DB.addCommentToTopic _db topic commentText 
+  return $ second (const $ resp200 PlainText "Success") res
 
 handleRequest _db (ViewRq topic)  = do
   comments <- DB.getComments _db topic
   return $ second (resp200Json (E.list encodeComment)) comments
-  --error "ViewRq handler not implemented"
+
 handleRequest _db ListRq      = do
   topics <- DB.getTopics _db
-  return $ either Left (Right . resp200Json (E.list encodeTopic)) topics
-  --return $ second (resp200Json (E.list encodeTopic)) topics
-  --return . Right $ resp200Json (E.list encodeTopic) topics
-  --error "ListRq handler not implemented"
+  return $ second (resp200Json (E.list encodeTopic)) topics
+
 
 mkRequest
   :: Request
