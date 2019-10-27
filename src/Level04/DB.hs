@@ -26,6 +26,10 @@ import           Level04.Types                      (getCommentText, fromDBComme
                                                      Error, Topic, mkTopic)
 import           Data.Bifunctor
 import           Level04.DB.Types                   (DBComment(..))
+import           Control.Applicative
+import           Control.Monad                      
+import           Level04.Types.Error
+
 
 -- ------------------------------------------------------------------------------|
 -- You'll need the documentation for sqlite-simple & sqlite-simple-errors handy! |
@@ -88,10 +92,9 @@ getComments FirstAppDB{dbConn} topic =
   -- not valid.
   in 
     do
-        comments <- Sql.query dbConn sql [getTopic topic] :: IO [DBComment]
-        return $ traverse fromDBComment  comments
-    
---    error "getComments not implemented (use Sql.runDBAction to catch exceptions)"
+        comments <- liftA (first DBError) $ Sql.runDBAction (Sql.query dbConn sql [getTopic topic] :: IO [DBComment])
+        return . join $ traverse fromDBComment <$> comments
+
 
 addCommentToTopic
   :: FirstAppDB
@@ -104,9 +107,9 @@ addCommentToTopic FirstAppDB{dbConn} topic commentText =
   in
     do
       currentTime <- getCurrentTime
-      Sql.execute dbConn sql (getTopic topic, getCommentText commentText,currentTime)
-      return $ Right ()
---    error "addCommentToTopic not implemented (use Sql.runDBAction to catch exceptions)"
+      res <- Sql.runDBAction $  Sql.execute dbConn sql (getTopic topic, getCommentText commentText,currentTime)
+      return $ first DBError res
+
 
 newtype DBTopic = DBTopic Text
 
@@ -124,10 +127,8 @@ getTopics FirstAppDB{dbConn} =
     sql = "SELECT DISTINCT topic FROM comments"
   in
     do        
-      comments <- Sql.query_ dbConn sql :: IO [DBTopic]
-      return $  traverse (mkTopic . getTopicText) comments
-     
---    error "getTopics not implemented (use Sql.runDBAction to catch exceptions)"
+      comments <- Sql.runDBAction $  (Sql.query_ dbConn sql :: IO [DBTopic])
+      return . join $  traverse (mkTopic . getTopicText) <$> (first DBError comments)
 
 deleteTopic
   :: FirstAppDB
@@ -138,7 +139,7 @@ deleteTopic FirstAppDB{dbConn} topic =
     sql = "DELETE FROM comments WHERE topic = ?"
   in
     do
-       Right <$> Sql.execute dbConn sql [getTopic topic]
-    
-    --error "deleteTopic not implemented (use Sql.runDBAction to catch exceptions)"
+      res <- Sql.runDBAction $  Sql.execute dbConn sql [getTopic topic]
+      return $ first DBError res
+      
 

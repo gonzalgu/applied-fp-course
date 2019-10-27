@@ -29,7 +29,7 @@ import           Test.Tasty         (defaultMain, testGroup)
 
 -- | 'tasty-wai' makes it easier to create requests to submit to our
 -- application, and provides some helper functions for checking our assertions.
-import           Test.Tasty.Wai     (assertBody, assertStatus', get, post,
+import           Test.Tasty.Wai     (assertBody, assertStatus', assertBodyContains,  get, post,
                                      testWai)
 
 -- | For running unit tests for individual functions, we have included the
@@ -40,29 +40,50 @@ import           Test.Tasty.Wai     (assertBody, assertStatus', get, post,
 --
 
 import           Network.HTTP.Types as HTTP
+--import           Network.Wai.Test (assertBodyContains)
 
 -- | This import is provided for you so you can check your work from Level02. As
 -- you move forward, come back and import your latest 'Application' so that you
 -- can test your work as you progress.
-import qualified Level02.Core       as Core
+import qualified Level04.Core       as Core
+import           Level04.DB         
+
+
 
 main :: IO ()
-main = defaultMain $ testGroup "Applied FP Course - Tests"
+main = do
+  res <- initDB ":memory:" --sqlite in memory
+  case res of
+    Left err -> putStrLn $ "error initializing db: " ++ show err
+    Right dbConn -> defaultMain $ testGroup "Applied FP Course - Tests"
+      [ testWai (Core.app dbConn)"List Topics" $
+        get "list" >>= assertStatus' HTTP.status200
 
-  [ testWai Core.app "List Topics" $
-      get "list" >>= assertStatus' HTTP.status200
+      , testWai (Core.app dbConn) "Empty Input" $ do
+          resp <- post "fudge/add" ""
+          assertStatus' HTTP.status400 resp
+          assertBody "Empty Comment" resp
 
-  , testWai Core.app "Empty Input" $ do
-      resp <- post "fudge/add" ""
-      assertStatus' HTTP.status400 resp
-      assertBody "Empty Comment Text" resp
+      , testWai (Core.app dbConn) "Add with input" $ do
+          resp <- post "fudge/add" "some body content"
+          assertStatus' HTTP.status200 resp
+          assertBody "Success" resp
 
-  , testWai Core.app "Add with input" $ do
-      resp <- post "fudge/add" "some body content"
-      assertStatus' HTTP.status200 resp
-      assertBody "not implemented yet." resp
+      , testWai (Core.app dbConn) "Get topic" $
+        get "fudge/view" >>= assertStatus' HTTP.status200
 
-  , testWai Core.app "Get topic" $
-      get "fudge/view" >>= assertStatus' HTTP.status200
-     
-  ]
+      , testWai (Core.app dbConn) "Put a comment in puppies topic" $ do
+          resp <- post "puppies/add" "puppies are great!"
+          assertStatus' HTTP.status200 resp
+          assertBody "Success" resp
+         
+      , testWai (Core.app dbConn) "Get comments in puppies topic" $ do
+          resp <- get "puppies/view"
+          assertStatus' HTTP.status200 resp
+          assertBodyContains "puppies are great!" resp
+
+      , testWai (Core.app dbConn) "topic puppies exists" $ do
+          resp <- get "list"
+          assertStatus' HTTP.status200 resp
+          assertBodyContains "puppies" resp
+      ]
