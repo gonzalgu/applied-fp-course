@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Level05.DB
   ( FirstAppDB (FirstAppDB)
@@ -30,7 +31,8 @@ import           Level05.Types                      (Comment, CommentText,
                                                      getCommentText, getTopic,
                                                      mkTopic)
 
-import           Level05.AppM                       (AppM)
+import           Level05.AppM                       (AppM, liftEither)
+import           Level05.DB.Types                   (DBComment(..))
 
 -- We have a data type to simplify passing around the information we need to run
 -- our database queries. This also allows things to change over time without
@@ -69,11 +71,18 @@ runDB
   :: (a -> Either Error b)
   -> IO a
   -> AppM b
-runDB =
+runDB f ma = do
+  a <- liftIO $ Sql.runDBAction  ma
+  liftEither $
+    case a of
+      Left err -> Left $ DBError err
+      Right v  -> f v
+--  liftEither (f a)
+  
   -- This function is intended to abstract away the running of DB functions and
   -- the catching of any errors. As well as the process of running some
   -- processing function over those results.
-  error "Write 'runDB' to match the type signature"
+--  error "Write 'runDB' to match the type signature"
   -- Move your use of DB.runDBAction to this function to avoid repeating
   -- yourself in the various DB functions.
 
@@ -81,8 +90,26 @@ getComments
   :: FirstAppDB
   -> Topic
   -> AppM [Comment]
-getComments =
-  error "Copy your completed 'getComments' and refactor to match the new type signature"
+getComments FirstAppDB{dbConn} topic =
+  let sql = "SELECT id,topic,comment,time FROM comments WHERE topic = ?"
+  in  runDB id $ do
+  -- type Sql.DatabaseResponse a = Either SQLiteResponse a
+  -- Sql.runDBAction :: IO a -> IO (Sql.DatabaseResponse a)
+      comments <- Sql.query dbConn sql [getTopic topic] :: IO [DBComment]
+      return $ traverse fromDBComment comments
+
+{-
+  let
+    sql = "SELECT id,topic,comment,time FROM comments WHERE topic = ?"
+  -- There are several possible implementations of this function. Particularly
+  -- there may be a trade-off between deciding to throw an Error if a DBComment
+  -- cannot be converted to a Comment, or simply ignoring any DBComment that is
+  -- not valid.
+  in 
+    do
+        comments <- liftA (first DBError) $ Sql.runDBAction (Sql.query dbConn sql [getTopic topic] :: IO [CommentText])
+        return . join $ traverse fromDBComment <$> comments
+-}
 
 addCommentToTopic
   :: FirstAppDB
