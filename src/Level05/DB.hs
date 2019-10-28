@@ -73,11 +73,7 @@ runDB
   -> AppM b
 runDB f ma = do
   a <- liftIO $ Sql.runDBAction  ma
-  liftEither $
-    case a of
-      Left err -> Left $ DBError err
-      Right v  -> f v
---  liftEither (f a)
+  liftEither $ either (Left . DBError) f a
   
   -- This function is intended to abstract away the running of DB functions and
   -- the catching of any errors. As well as the process of running some
@@ -92,44 +88,44 @@ getComments
   -> AppM [Comment]
 getComments FirstAppDB{dbConn} topic =
   let sql = "SELECT id,topic,comment,time FROM comments WHERE topic = ?"
-  in  runDB id $ do
-  -- type Sql.DatabaseResponse a = Either SQLiteResponse a
-  -- Sql.runDBAction :: IO a -> IO (Sql.DatabaseResponse a)
-      comments <- Sql.query dbConn sql [getTopic topic] :: IO [DBComment]
-      return $ traverse fromDBComment comments
-
-{-
-  let
-    sql = "SELECT id,topic,comment,time FROM comments WHERE topic = ?"
-  -- There are several possible implementations of this function. Particularly
-  -- there may be a trade-off between deciding to throw an Error if a DBComment
-  -- cannot be converted to a Comment, or simply ignoring any DBComment that is
-  -- not valid.
-  in 
-    do
-        comments <- liftA (first DBError) $ Sql.runDBAction (Sql.query dbConn sql [getTopic topic] :: IO [CommentText])
-        return . join $ traverse fromDBComment <$> comments
--}
+  in runDB (traverse fromDBComment) (Sql.query dbConn sql [getTopic topic] :: IO [DBComment])
 
 addCommentToTopic
   :: FirstAppDB
   -> Topic
   -> CommentText
   -> AppM ()
-addCommentToTopic =
-  error "Copy your completed 'appCommentToTopic' and refactor to match the new type signature"
+addCommentToTopic FirstAppDB{dbConn} topic commentText =
+  let 
+    sql = "INSERT INTO comments (topic,comment,time) VALUES (?,?,?)"
+  in runDB (Right) $ do
+      currentTime <- getCurrentTime
+      Sql.execute dbConn sql (getTopic topic, getCommentText commentText , currentTime)
+ 
+
+newtype DBTopic = DBTopic Text
+
+getTopicText :: DBTopic -> Text
+getTopicText (DBTopic t) = t
+
+instance Sql.FromRow DBTopic where
+  fromRow = DBTopic <$> Sql.field
 
 getTopics
   :: FirstAppDB
   -> AppM [Topic]
-getTopics =
-  error "Copy your completed 'getTopics' and refactor to match the new type signature"
+getTopics FirstAppDB{dbConn} =
+  let
+    sql = "SELECT DISTINCT topic FROM comments"
+  in runDB (traverse (mkTopic . getTopicText)) (Sql.query_ dbConn sql :: IO [DBTopic])
 
 deleteTopic
   :: FirstAppDB
   -> Topic
   -> AppM ()
-deleteTopic =
-  error "Copy your completed 'deleteTopic' and refactor to match the new type signature"
+deleteTopic FirstAppDB{dbConn} topic =
+  let
+    sql = "DELETE FROM comments WHERE topic = ?"
+  in runDB Right (Sql.execute dbConn sql [getTopic topic]) 
 
 -- Go to 'src/Level05/Core.hs' next.

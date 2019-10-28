@@ -42,6 +42,7 @@ import           Level05.Types                      (ContentType (..),
                                                      encodeComment, encodeTopic,
                                                      mkCommentText, mkTopic,
                                                      renderContentType)
+import           Data.Bifunctor                                                     
 
 -- Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -58,13 +59,13 @@ runApp = do
   case cfgE of
     Left err   ->
       -- We can't run our app at all! Display the message and exit the application.
-      undefined
+      putStrLn "cant run out app at all! bye"
     Right cfg ->
       -- We have a valid config! We can now complete the various pieces needed to run our
       -- application. This function 'finally' will execute the first 'IO a', and then, even in the
       -- case of that value throwing an exception, execute the second 'IO b'. We do this to ensure
       -- that our DB connection will always be closed when the application finishes, or crashes.
-      Ex.finally (run undefined undefined) (DB.closeDB cfg)
+      putStrLn "starting app" >> Ex.finally (run 3000 (app cfg)) (DB.closeDB cfg)
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -75,8 +76,10 @@ runApp = do
 --
 prepareAppReqs
   :: IO ( Either StartUpError DB.FirstAppDB )
-prepareAppReqs =
-  error "copy your prepareAppReqs from the previous level."
+prepareAppReqs = do
+  firstAppDb <- DB.initDB . Conf.dbFilePath $ Conf.firstAppConfig
+  return $ bimap DBInitErr id firstAppDb
+  --error "copy your prepareAppReqs from the previous level."
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -127,11 +130,33 @@ resp200Json e =
 
 -- How has this implementation changed, now that we have an AppM to handle the
 -- errors for our application? Could it be simplified? Can it be changed at all?
+-- type Application = Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 app
   :: DB.FirstAppDB
   -> Application
-app db rq cb =
-  error "app not reimplemented"
+app db rq cb = {-(either mkErrorResponse id) <$> -}(runAppM $ do
+    request <- mkRequest rq
+    response <- handleRequest db request
+    liftIO (cb response)
+    )
+  {-
+  do
+  rq' <- mkRequest rq
+  resp <- handleRespErr <$> handleRErr rq'
+  cb resp
+  where
+    handleRespErr :: Either Error Response -> Response
+    handleRespErr = either mkErrorResponse id
+
+    -- We want to pass the Database through to the handleRequest so it's
+    -- available to all of our handlers.
+    handleRErr :: Either Error RqType -> IO (Either Error Response)
+    handleRErr = either ( pure . Left ) ( handleRequest db )
+  -}
+    
+  
+   
+  --error "app not reimplemented"
 
 handleRequest
   :: DB.FirstAppDB
