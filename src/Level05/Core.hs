@@ -134,29 +134,10 @@ resp200Json e =
 app
   :: DB.FirstAppDB
   -> Application
-app db rq cb = {-(either mkErrorResponse id) <$> -}(runAppM $ do
-    request <- mkRequest rq
-    response <- handleRequest db request
-    liftIO (cb response)
-    )
-  {-
-  do
-  rq' <- mkRequest rq
-  resp <- handleRespErr <$> handleRErr rq'
-  cb resp
-  where
-    handleRespErr :: Either Error Response -> Response
-    handleRespErr = either mkErrorResponse id
+app db rq cb = do
+  response <- runAppM (mkRequest rq >>= handleRequest db)
+  cb(either mkErrorResponse id response)
 
-    -- We want to pass the Database through to the handleRequest so it's
-    -- available to all of our handlers.
-    handleRErr :: Either Error RqType -> IO (Either Error Response)
-    handleRErr = either ( pure . Left ) ( handleRequest db )
-  -}
-    
-  
-   
-  --error "app not reimplemented"
 
 handleRequest
   :: DB.FirstAppDB
