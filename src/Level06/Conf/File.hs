@@ -8,7 +8,7 @@ import           Data.Text                  (Text, pack)
 import           Data.Bifunctor             (first)
 import           Data.Monoid                (Last (Last))
 
-import           Control.Exception          (try)
+import           Control.Exception          (try, displayException)
 
 import qualified Data.Attoparsec.ByteString as AB
 
@@ -17,7 +17,7 @@ import qualified Waargonaut.Decode          as D
 import           Waargonaut.Decode.Error    (DecodeError (ParseFailed))
 
 import           Level06.AppM               (AppM (runAppM))
-import           Level06.Types              (ConfigError (BadConfFile),
+import           Level06.Types              (ConfigError (..),
                                              PartialConf (PartialConf))
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -35,7 +35,10 @@ import           Level06.Types              (ConfigError (BadConfFile),
 readConfFile
   :: FilePath
   -> AppM ConfigError ByteString
-readConfFile =
+readConfFile fp = AppM $ do
+    result <- try (readFile fp)
+    return $ second (FileNotFound . show) result
+    
   -- Reading a file may throw an exception for any number of
   -- reasons. Use the 'try' function from 'Control.Exception' to catch
   -- the exception and turn it into an error value that is thrown as
@@ -43,7 +46,7 @@ readConfFile =
   --
   -- No exceptions from reading the file should escape this function.
   --
-  error "readConfFile not implemented"
+  --error "readConfFile not implemented"
 
 -- | Construct the function that will take a ``FilePath``, read it in, decode it,
 -- and construct our ``PartialConf``.
