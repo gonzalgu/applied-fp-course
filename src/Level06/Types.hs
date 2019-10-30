@@ -28,6 +28,7 @@ module Level06.Types
   , renderContentType
   , confPortToWai
   , fromDBComment
+  , partialConfDecoder
   ) where
 
 import           GHC.Word                           (Word16)
@@ -175,7 +176,7 @@ confPortToWai = fromIntegral . getPort . port
 -- as we build our application and the compiler can help us out.
 data ConfigError
   = BadConfFile DecodeError
-  | FileNotFound String
+  | FileNotFound Text
   deriving Show
 
 -- Our application will be able to load configuration from both a file and
@@ -224,6 +225,11 @@ instance Semigroup PartialConf where
 -- have to tell waargonaut how to go about converting the JSON into our PartialConf
 -- data structure.
 partialConfDecoder :: Monad f => Decoder f PartialConf
-partialConfDecoder = error "PartialConf Decoder not implemented"
+partialConfDecoder = PartialConf
+  <$> D.atKey "port" getPort
+  <*> D.atKey "path" getPath
+  where
+    getPort = Just . Last . Port <$>  D.integral
+    getPath = Just . Last . DBFilePath <$> D.string
 
 -- Go to 'src/Level06/Conf/File.hs' next

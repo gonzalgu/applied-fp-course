@@ -135,7 +135,9 @@ app
   :: DB.FirstAppDB
   -> Application
 app db rq cb = do
+  putStrLn $ "request received: " ++ show rq
   response <- runAppM (mkRequest rq >>= handleRequest db)
+--  putStrLn $ "response: " ++ show response
   cb(either mkErrorResponse id response)
 
 

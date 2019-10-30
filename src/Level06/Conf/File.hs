@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fprint-potential-instances #-}
 module Level06.Conf.File where
 
-import           Data.ByteString            (ByteString)
+import           Data.ByteString            (ByteString,readFile)
+import           Prelude            hiding  (readFile)
+--import           Data.Text.Encoding         (encodeUtf8)
 
-import           Data.Text                  (Text, pack)
+import           Data.Text                  (Text,pack)
 
-import           Data.Bifunctor             (first)
+import           Data.Bifunctor             (bimap, first)
 import           Data.Monoid                (Last (Last))
 
-import           Control.Exception          (try, displayException)
+import           Control.Exception          (SomeException, Exception, try, displayException)
 
 import qualified Data.Attoparsec.ByteString as AB
 
@@ -16,8 +19,8 @@ import           Waargonaut                 (Json)
 import qualified Waargonaut.Decode          as D
 import           Waargonaut.Decode.Error    (DecodeError (ParseFailed))
 
-import           Level06.AppM               (AppM (runAppM))
-import           Level06.Types              (ConfigError (..),
+import           Level06.AppM               
+import           Level06.Types              (ConfigError (..), partialConfDecoder ,
                                              PartialConf (PartialConf))
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -35,9 +38,10 @@ import           Level06.Types              (ConfigError (..),
 readConfFile
   :: FilePath
   -> AppM ConfigError ByteString
-readConfFile fp = AppM $ do
-    result <- try (readFile fp)
-    return $ second (FileNotFound . show) result
+readConfFile fp = AppM $ do{
+  result <- try (readFile fp) :: IO(Either SomeException ByteString);
+  return $ bimap (FileNotFound . pack . displayException) id result
+  }
     
   -- Reading a file may throw an exception for any number of
   -- reasons. Use the 'try' function from 'Control.Exception' to catch
@@ -53,7 +57,17 @@ readConfFile fp = AppM $ do
 parseJSONConfigFile
   :: FilePath
   -> AppM ConfigError PartialConf
-parseJSONConfigFile =
-  error "parseJSONConfigFile not implemented"
+parseJSONConfigFile fp = do
+  conf <- readConfFile fp
+  let e = D.pureDecodeFromByteString AB.parseOnly partialConfDecoder conf
+  liftEither $ bimap (BadConfFile . fst) id e
+  {-
+  case e of
+    Left (dec,_)      -> liftEither $ Left (BadConfFile dec)
+    Right partialConf -> liftEither $ Right partialConf
+    -}
+
+  
+  
 
 -- Go to 'src/Level06/Conf.hs' next.
