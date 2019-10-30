@@ -107,10 +107,12 @@ data RqType
   = AddRq Topic CommentText
   | ViewRq Topic
   | ListRq
+  deriving Show
 
 data ContentType
   = PlainText
   | JSON
+--  deriving Show
 
 renderContentType
   :: ContentType

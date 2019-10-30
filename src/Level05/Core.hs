@@ -11,7 +11,7 @@ import           Control.Monad.IO.Class             (liftIO)
 
 import           Network.Wai                        (Application, Request,
                                                      Response, pathInfo,
-                                                     requestMethod, responseLBS,
+                                                     requestMethod, responseLBS,responseStatus,
                                                      strictRequestBody)
 import           Network.Wai.Handler.Warp           (run)
 
@@ -65,7 +65,7 @@ runApp = do
       -- application. This function 'finally' will execute the first 'IO a', and then, even in the
       -- case of that value throwing an exception, execute the second 'IO b'. We do this to ensure
       -- that our DB connection will always be closed when the application finishes, or crashes.
-      putStrLn "starting app" >> Ex.finally (run 3000 (app cfg)) (DB.closeDB cfg)
+      putStrLn "starting app..." >> Ex.finally (run 3000 (app cfg)) (DB.closeDB cfg)
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -136,9 +136,22 @@ app
   -> Application
 app db rq cb = do
   putStrLn $ "request received: " ++ show rq
-  response <- runAppM (mkRequest rq >>= handleRequest db)
+  response <- runAppM $ do{
+    request <- liftEither =<< pure mkListRequest;
+    liftIO (putStrLn $ "request made: " ++ show request);
+    resp <- handleRequest db request;
+    liftIO (putStrLn $ "response status: " ++ show (responseStatus resp));
+    return resp
+    }    
+  putStrLn "request processed."
 --  putStrLn $ "response: " ++ show response
-  cb(either mkErrorResponse id response)
+  case response of
+    Left err -> cb . mkErrorResponse $  err
+    Right r  -> cb r
+    
+--  cb(either mkErrorResponse id response)
+
+          
 
 
 handleRequest
