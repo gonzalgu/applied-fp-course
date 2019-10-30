@@ -134,24 +134,10 @@ resp200Json e =
 app
   :: DB.FirstAppDB
   -> Application
-app db rq cb = do
-  putStrLn $ "request received: " ++ show rq
-  response <- runAppM $ do{
-    request <- liftEither =<< pure mkListRequest;
-    liftIO (putStrLn $ "request made: " ++ show request);
-    resp <- handleRequest db request;
-    liftIO (putStrLn $ "response status: " ++ show (responseStatus resp));
-    return resp
-    }    
-  putStrLn "request processed."
---  putStrLn $ "response: " ++ show response
-  case response of
-    Left err -> cb . mkErrorResponse $  err
-    Right r  -> cb r
-    
---  cb(either mkErrorResponse id response)
-
-          
+app db rq cb =   do
+  response <- runAppM $ mkRequest rq >>= handleRequest db
+  responseReceived <- cb $ either mkErrorResponse id response
+  return responseReceived
 
 
 handleRequest
