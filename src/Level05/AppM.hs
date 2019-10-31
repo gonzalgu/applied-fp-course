@@ -5,6 +5,7 @@
 module Level05.AppM
   ( AppM
   , liftEither
+  , catchError
   , runAppM
   ) where
 
@@ -15,7 +16,7 @@ import           Data.Text              (Text)
 
 import           Level05.Types          (Error)
 
-import           Data.Bifunctor         (second, first)
+import           Data.Bifunctor         (bimap, second, first)
 
 -- We're going to add a very useful abstraction to our application. We'll
 -- automate away the explicit error handling and inspection of our Either values
@@ -90,10 +91,16 @@ instance Applicative AppM where
 
 instance Monad AppM where
   (>>=) :: AppM a -> (a -> AppM b) -> AppM b
+  mx >>= f = AppM $ do
+    x <- runAppM mx
+    case x of
+      Left err -> return $ Left err
+      Right v  -> runAppM . f $ v
+  {-
   (>>=) mx f = join $ AppM $ do
     ex <- runAppM mx
     return $ second f ex
-    
+    -}
 
 instance MonadIO AppM where
   liftIO :: IO a -> AppM a

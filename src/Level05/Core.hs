@@ -12,7 +12,7 @@ import           Control.Monad.IO.Class             (liftIO)
 import           Network.Wai                        (Application, Request,
                                                      Response, pathInfo,
                                                      requestMethod, responseLBS,responseStatus,
-                                                     strictRequestBody)
+                                                     strictRequestBody,defaultRequest)
 import           Network.Wai.Handler.Warp           (run)
 
 import           Network.HTTP.Types                 (Status, hContentType,
@@ -33,7 +33,7 @@ import qualified Waargonaut.Encode                  as E
 
 import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 
-import           Level05.AppM                       (AppM, liftEither, runAppM)
+import           Level05.AppM                       (AppM, liftEither, runAppM,catchError)
 import qualified Level05.Conf                       as Conf
 import qualified Level05.DB                         as DB
 import           Level05.Types                      (ContentType (..),
@@ -79,7 +79,6 @@ prepareAppReqs
 prepareAppReqs = do
   firstAppDb <- DB.initDB . Conf.dbFilePath $ Conf.firstAppConfig
   return $ bimap DBInitErr id firstAppDb
-  --error "copy your prepareAppReqs from the previous level."
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -134,9 +133,12 @@ resp200Json e =
 app
   :: DB.FirstAppDB
   -> Application
-app db rq cb =   do
-  response <- runAppM $ mkRequest rq >>= handleRequest db
-  responseReceived <- cb $ either mkErrorResponse id response
+app db rq cb = do
+  req <- runAppM $ mkRequest rq
+  resp <- runAppM $  case req of
+             Right r -> handleRequest db r
+             Left err -> liftEither $ Left err 
+  responseReceived <- cb $ either mkErrorResponse id resp
   return responseReceived
 
 
@@ -152,10 +154,14 @@ handleRequest db rqType = case rqType of
   ViewRq t  -> resp200Json (E.list encodeComment) <$> DB.getComments db t
   ListRq    -> resp200Json (E.list encodeTopic)   <$> DB.getTopics db
 
+
 mkRequest
   :: Request
   -> AppM RqType
 mkRequest rq =
+  let p = pathInfo rq
+      m = requestMethod rq
+  in do
   liftEither =<< case ( pathInfo rq, requestMethod rq ) of
     -- Commenting on a given topic
     ( [t, "add"], "POST" ) -> liftIO $ mkAddRequest t <$> strictRequestBody rq
