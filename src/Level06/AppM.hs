@@ -5,8 +5,10 @@ module Level06.AppM
   ( AppM(..)
   , App
   , liftEither
+  , liftIO
  -- , runAppM
   , runApp
+  , bimap
   ) where
 
 import           Control.Monad.Except   (join,MonadError (..))
@@ -65,9 +67,10 @@ instance Applicative (AppM e) where
 
 instance Monad (AppM e) where
   (>>=) :: AppM e a -> (a -> AppM e b) -> AppM e b
-  (>>=)  mx f = join $ AppM $ do
+  (>>=)  mx f = AppM $ do
     ex <- runAppM mx
-    return $ f <$> ex
+    either (return . Left) (runAppM . f) ex
+    
 
 instance MonadIO (AppM e) where
   liftIO :: IO a -> AppM e a

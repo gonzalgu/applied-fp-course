@@ -154,7 +154,7 @@ newtype DBFilePath = DBFilePath
 -- Add some fields to the ``Conf`` type:
 -- - A customisable port number: ``Port``
 -- - A filepath for our SQLite database: ``DBFilePath``
-data Conf = Conf{ port :: Port, filePath :: DBFilePath}
+data Conf = Conf{ port :: Port, filePath :: DBFilePath} deriving Show
 
 -- We're storing our Port as a Word16 to be more precise and prevent invalid
 -- values from being used in our application. However Wai is not so stringent.
@@ -177,6 +177,7 @@ confPortToWai = fromIntegral . getPort . port
 data ConfigError
   = BadConfFile DecodeError
   | FileNotFound Text
+  | UndefinedProperty Text
   deriving Show
 
 -- Our application will be able to load configuration from both a file and
@@ -206,6 +207,7 @@ data PartialConf = PartialConf
   { pcPort       :: Maybe (Last Port)
   , pcDBFilePath :: Maybe (Last DBFilePath)
   }
+  deriving(Show)
 
 -- We need to define a ``Semigroup`` instance for ``PartialConf``. We define our ``(<>)``
 -- function to lean on the ``Semigroup`` instance for Last to always get the last value.

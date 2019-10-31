@@ -61,13 +61,6 @@ parseJSONConfigFile fp = do
   conf <- readConfFile fp
   let e = D.pureDecodeFromByteString AB.parseOnly partialConfDecoder conf
   liftEither $ bimap (BadConfFile . fst) id e
-  {-
-  case e of
-    Left (dec,_)      -> liftEither $ Left (BadConfFile dec)
-    Right partialConf -> liftEither $ Right partialConf
-    -}
-
-  
   
 
 -- Go to 'src/Level06/Conf.hs' next.

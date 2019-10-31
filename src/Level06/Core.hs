@@ -37,10 +37,10 @@ import           Waargonaut.Encode                  (Encoder')
 import qualified Waargonaut.Encode                  as E
 
 import           Level06.AppM                       (App, AppM (..),
-                                                     liftEither, runApp)
+                                                     liftEither, runApp,bimap)
 import qualified Level06.Conf                       as Conf
 import qualified Level06.DB                         as DB
-import           Level06.Types                      (Conf, ConfigError,
+import           Level06.Types                      (getDBFilePath, confPortToWai, Conf(..), ConfigError,Port(..),
                                                      ContentType (..),
                                                      Error (..),
                                                      RqType (AddRq, ListRq, ViewRq),
@@ -57,7 +57,15 @@ data StartUpError
   deriving Show
 
 runApplication :: IO ()
-runApplication = error "copy your previous 'runApp' implementation and refactor as needed"
+runApplication = do
+  cfgE <- runAppM prepareAppReqs
+  case cfgE of
+    Left startupErr ->
+      putStrLn $ "cant run out app at all! bye! ;-) -- " ++ show startupErr
+    Right (conf,dbFirstApp) -> 
+      putStrLn( "starting app...with conf="++show conf) >>
+      Ex.finally (run (confPortToWai $ conf) (app conf dbFirstApp)) (DB.closeDB dbFirstApp)
+      
 
 -- | We need to complete the following steps to prepare our app requirements:
 --
@@ -72,7 +80,10 @@ runApplication = error "copy your previous 'runApp' implementation and refactor 
 -- up!
 --
 prepareAppReqs :: AppM StartUpError (Conf, DB.FirstAppDB)
-prepareAppReqs = error "copy your prepareAppReqs from the previous level."
+prepareAppReqs = do
+  conf <- bimap ConfErr id $  Conf.parseOptions "files/appconfig.json"
+  firstAppDb <- bimap DBInitErr id $ AppM $ (DB.initDB (getDBFilePath . filePath $ conf))
+  return (conf,firstAppDb)
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse

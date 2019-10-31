@@ -45,44 +45,47 @@ import           Network.HTTP.Types as HTTP
 -- | This import is provided for you so you can check your work from Level02. As
 -- you move forward, come back and import your latest 'Application' so that you
 -- can test your work as you progress.
-import qualified Level05.Core       as Core
-import           Level05.DB         
+import qualified Level06.Core       as Core
+import           Level06.DB
+import           Level06.Conf      
 
 
 
 main :: IO ()
 main = do
   res <- initDB ":memory:" --sqlite in memory
-  case res of
-    Left err -> putStrLn $ "error initializing db: " ++ show err
-    Right dbConn -> defaultMain $ testGroup "Applied FP Course - Tests"
-      [ testWai (Core.app dbConn)"List Topics" $
+  case (res, makeConfig defaultConf) of
+    (Left dbErr, _           ) -> putStrLn $ "error initializing db: " ++ show dbErr
+    (_         , Left confErr) -> putStrLn $ "configuration error: "   ++ show confErr 
+    (Right dbConn, Right conf) ->
+      defaultMain $ testGroup "Applied FP Course - Tests"
+      [ testWai (Core.app conf dbConn)"List Topics" $
         get "list" >>= assertStatus' HTTP.status200
-
-      , testWai (Core.app dbConn) "Empty Input" $ do
+        
+      , testWai (Core.app conf dbConn) "Empty Input" $ do
           resp <- post "fudge/add" ""
           assertStatus' HTTP.status400 resp
           assertBody "Empty Comment" resp
 
-      , testWai (Core.app dbConn) "Add with input" $ do
+      , testWai (Core.app conf dbConn) "Add with input" $ do
           resp <- post "fudge/add" "some body content"
           assertStatus' HTTP.status200 resp
           assertBody "Success" resp
 
-      , testWai (Core.app dbConn) "Get topic" $
+      , testWai (Core.app conf dbConn) "Get topic" $
         get "fudge/view" >>= assertStatus' HTTP.status200
 
-      , testWai (Core.app dbConn) "Put a comment in puppies topic" $ do
+      , testWai (Core.app conf dbConn) "Put a comment in puppies topic" $ do
           resp <- post "puppies/add" "puppies are great!"
           assertStatus' HTTP.status200 resp
           assertBody "Success" resp
          
-      , testWai (Core.app dbConn) "Get comments in puppies topic" $ do
+      , testWai (Core.app conf dbConn) "Get comments in puppies topic" $ do
           resp <- get "puppies/view"
           assertStatus' HTTP.status200 resp
           assertBodyContains "puppies are great!" resp
 
-      , testWai (Core.app dbConn) "topic puppies exists" $ do
+      , testWai (Core.app conf dbConn) "topic puppies exists" $ do
           resp <- get "list"
           assertStatus' HTTP.status200 resp
           assertBodyContains "puppies" resp
