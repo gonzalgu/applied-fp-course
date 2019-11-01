@@ -18,6 +18,7 @@ import           Data.Text              (Text)
 
 import           Level07.Types          (Conf, FirstAppDB)
 import           Level07.Types.Error    (Error)
+import           Data.Bifunctor
 
 -- | First, let's clean up our (Conf,FirstAppDB) with an application Env type.
 -- We will add a general purpose logging function as well. Remember that
@@ -56,49 +57,74 @@ newtype AppM e a = AppM
   -- into "magic" what is otherwise straight-forward implementations. You are
   -- here to learn after all.
 
+{-
+instance Functor (AppM e) where
+  fmap :: (a -> b) -> AppM e a -> AppM e b
+  fmap f x = AppM $ \env -> do
+    x' <- runAppM x env
+    return $ bimap id f x' --either id f x'
+  -}  
+
 type App = AppM Error
 
 runApp :: App a -> Env -> IO (Either Error a)
-runApp = error "runAppM not implemented"
+runApp app env = runAppM app env
 
 instance Applicative (AppM e) where
   pure :: a -> AppM e a
-  pure = error "pure for AppM e not implemented"
+  pure x = AppM $ \_ -> return $ Right x
 
   (<*>) :: AppM e (a -> b) -> AppM e a -> AppM e b
-  (<*>) = error "spaceship for AppM e not implemented"
+  (<*>) f x = AppM $ \env -> do
+    f' <- runAppM f env
+    x' <- runAppM x env
+    return $ f' <*> x'
 
 instance Monad (AppM e) where
   -- | When it comes to running functions in (AppM e) as a Monad, this will take
   -- care of passing the Env from one function to the next whilst preserving the
   -- error handling behaviour.
   (>>=) :: AppM e a -> (a -> AppM e b) -> AppM e b
-  (>>=) = error "bind for AppM e not implemented"
+  (>>=) x f = AppM $ \env -> do
+    x' <- runAppM x env
+    case x' of
+      Left err -> return $ Left err
+      Right v  -> runAppM (f v) env
+
 
 instance MonadError e (AppM e) where
   throwError :: e -> AppM e a
-  throwError = error "throwError for AppM e not implemented"
+  throwError err = AppM $ \_  -> return $ Left err
 
   catchError :: AppM e a -> (e -> AppM e a) -> AppM e a
-  catchError = error "catchError for AppM e not implemented"
+  catchError x cf = AppM $ \env -> do
+    x' <- runAppM x env
+    case x' of
+      Left err -> runAppM (cf err) env
+      Right _  -> return x'
 
 instance MonadReader Env (AppM e) where
   -- Return the current Env from the AppM.
   ask :: AppM e Env
-  ask = error "ask for AppM e not implemented"
+  ask = AppM $ \env -> return (Right env)
 
   -- Run a (AppM e) inside of the current one using a modified Env value.
   local :: (Env -> Env) -> AppM e a -> AppM e a
-  local = error "local for AppM e not implemented"
+  local f x = AppM $ \env -> do
+    x' <- runAppM x (f env)
+    return x'
 
   -- This will run a function on the current Env and return the result.
   reader :: (Env -> a) -> AppM e a
-  reader = error "reader for AppM e not implemented"
+  reader f = AppM $ \env -> return $ Right (f env)
+
 
 instance MonadIO (AppM e) where
   -- Take a type of 'IO a' and lift it into our (AppM e).
   liftIO :: IO a -> AppM e a
-  liftIO = error "liftIO for AppM not implemented"
+  liftIO x  = AppM $ \_ -> do
+    v <- x
+    return $ Right v 
 
 -- | This is a helper function that will `lift` an Either value into our new AppM
 -- by applying `throwError` to the Left value, and using `pure` to lift the
@@ -108,6 +134,6 @@ instance MonadIO (AppM e) where
 -- pure :: Applicative m => a -> m a
 --
 liftEither :: Either e a -> AppM e a
-liftEither = error "throwLeft not implemented"
+liftEither = either throwError pure 
 
 -- Move on to ``src/Level07/DB.hs`` after this
