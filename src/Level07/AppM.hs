@@ -2,12 +2,15 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 module Level07.AppM
   ( AppM (..)
   , App
   , Env (..)
   , liftEither
   , runApp
+  , ask
+  , envlog
   ) where
 
 import           Control.Monad.Except   (MonadError (..))
@@ -35,6 +38,9 @@ data Env = Env
   , envConfig    :: Conf
   , envDB        :: FirstAppDB
   }
+
+envlog :: Text -> App ()
+envlog = liftIO . putStrLn . show
 
 -- | It would be nice to remove the need to pass around our Env to every
 -- function that needs it. Wouldn't it be great to have our functions run where
