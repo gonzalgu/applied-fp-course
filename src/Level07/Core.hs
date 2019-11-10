@@ -2,6 +2,7 @@
 module Level07.Core
   ( runApplication
   , prepareAppReqs
+  , prepareAppReqsWithConf
   , app
   ) where
 
@@ -82,12 +83,20 @@ runApplication = do
 --
 -- 'mtl' on Hackage: https://hackage.haskell.org/package/mtl
 --
+prepareAppReqsWithConf :: String -> ExceptT StartUpError IO Env
+prepareAppReqsWithConf confFilePath = do
+  conf       <- ExceptT (first ConfErr   <$> Conf.parseOptions confFilePath)
+  firstAppDb <- ExceptT (first DBInitErr <$> DB.initDB (dbFilePath $ conf))
+  return $ Env envlog conf firstAppDb
+  
 prepareAppReqs :: ExceptT StartUpError IO Env
-prepareAppReqs = do 
+prepareAppReqs = prepareAppReqsWithConf "files/appconfig.json"
+{-
+  do 
   conf       <- ExceptT (first ConfErr   <$> Conf.parseOptions "files/appconfig.json")
   firstAppDb <- ExceptT (first DBInitErr <$> DB.initDB (dbFilePath $ conf))
   return $ Env envlog conf firstAppDb
-
+-}
   -- You may copy your previous implementation of this function and try refactoring it. On the
   -- condition you have to explain to the person next to you what you've done and why it works.
 

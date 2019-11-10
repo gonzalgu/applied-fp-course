@@ -3,5 +3,5 @@
   "helloMsg": "Functional Programming is neat.",
   "tableName": "comments",
   "dbName": "app_db.db",
-  "dpFilePath":"/home/gadol/src/haskell/applied-fp-course/app_db.db"
+  "dbFilePath":":memory:"
 }
