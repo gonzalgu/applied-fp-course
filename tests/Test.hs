@@ -45,9 +45,9 @@ import           Network.HTTP.Types as HTTP
 -- | This import is provided for you so you can check your work from Level02. As
 -- you move forward, come back and import your latest 'Application' so that you
 -- can test your work as you progress.
-import qualified Level07.Core       as Core
-import           Level07.DB
-import           Level07.Conf
+import qualified Level08.Core       as Core
+import           Level08.DB
+import           Level08.Conf
 import           Control.Monad.Except               (ExceptT (..), runExceptT)
 
 
