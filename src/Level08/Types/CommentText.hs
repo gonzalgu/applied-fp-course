@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Level08.Types.CommentText
   ( CommentText
   , mkCommentText
@@ -13,9 +14,12 @@ import           Data.Text                  (Text)
 
 import           Level08.Types.Error        (Error (EmptyCommentText),
                                              nonEmptyText)
+import Control.Lens                                             
 
 newtype CommentText = CommentText Text
   deriving (Show)
+  
+makeLenses ''CommentText  
 
 encodeCommentText :: Applicative f => Encoder f CommentText
 encodeCommentText = getCommentText >$< E.text

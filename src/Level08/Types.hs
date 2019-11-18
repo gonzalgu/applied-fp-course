@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Level08.Types
   ( Error (..)
   , ConfigError (..)
@@ -47,7 +48,7 @@ import qualified Waargonaut.Encode                  as E
 import           Database.SQLite.Simple             (Connection)
 import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 
-import           Level08.DB.Types                   (DBComment (dbCommentComment, dbCommentId, dbCommentTime, dbCommentTopic))
+import           Level08.DB.Types                   (DBComment (..), dbCommentComment, dbCommentId, dbCommentTime, dbCommentTopic)
 
 import           Level08.Types.Error                (Error (DBError, EmptyCommentText, EmptyTopic, UnknownRoute))
 
@@ -58,6 +59,8 @@ import           Level08.Types.CommentText          (CommentText,
 
 import           Level08.Types.Topic                (Topic, encodeTopic,
                                                      getTopic, mkTopic)
+                                                     
+import           Control.Lens                                                     
 
 newtype CommentId = CommentId Int
   deriving (Show)
@@ -66,12 +69,16 @@ encodeCommentId :: Applicative f => Encoder f CommentId
 encodeCommentId = (\(CommentId i) -> i) >$< E.int
 
 data Comment = Comment
-  { commentId    :: CommentId
-  , commentTopic :: Topic
-  , commentText  :: CommentText
-  , commentTime  :: UTCTime
+  { _commentId    :: CommentId
+  , _commentTopic :: Topic
+  , _commentText  :: CommentText
+  , _commentTime  :: UTCTime
   }
   deriving Show
+
+makeLenses ''CommentId  
+makeLenses ''Comment  
+makeLenses ''Topic
 
 encodeISO8601DateTime :: Applicative f => Encoder f UTCTime
 encodeISO8601DateTime = pack . TF.formatTime tl fmt >$< E.text
@@ -81,10 +88,10 @@ encodeISO8601DateTime = pack . TF.formatTime tl fmt >$< E.text
 
 encodeComment :: Applicative f => Encoder f Comment
 encodeComment = E.mapLikeObj $ \c ->
-  E.atKey' "id"    encodeCommentId       (commentId c) .
-  E.atKey' "topic" encodeTopic           (commentTopic c) .
-  E.atKey' "text"  encodeCommentText     (commentText c) .
-  E.atKey' "time"  encodeISO8601DateTime (commentTime c)
+  E.atKey' "id"    encodeCommentId       (c ^. commentId) .
+  E.atKey' "topic" encodeTopic           (c ^. commentTopic) .
+  E.atKey' "text"  encodeCommentText     (c ^. commentText) .
+  E.atKey' "time"  encodeISO8601DateTime (c ^. commentTime)
 
 -- For safety we take our stored DBComment and try to construct a Comment that
 -- we would be okay with showing someone. However unlikely it may be, this is a
@@ -94,10 +101,10 @@ fromDBComment
   :: DBComment
   -> Either Error Comment
 fromDBComment dbc =
-  Comment (CommentId     $ dbCommentId dbc)
-      <$> (mkTopic       $ dbCommentTopic dbc)
-      <*> (mkCommentText $ dbCommentComment dbc)
-      <*> (pure          $ dbCommentTime dbc)
+  Comment (CommentId     $ dbc ^. dbCommentId)
+      <$> (mkTopic       $ dbc ^. dbCommentTopic)
+      <*> (mkCommentText $ dbc ^. dbCommentComment)
+      <*> (pure          $ dbc ^. dbCommentTime)
 
 data RqType
   = AddRq Topic CommentText
