@@ -43,6 +43,7 @@ import qualified Level08.Responses                  as Res
 import           Level08.Types                      (Conf(..), DBFilePath(..), ConfigError,
                                                      ContentType (PlainText),
                                                      Error (..), RqType (..),
+                                                     dbFilePath,
                                                      confPortToWai,
                                                      encodeComment, encodeTopic,
                                                      mkCommentText, mkTopic)
@@ -53,6 +54,7 @@ import           Level08.AppM                       (App, Env (..), liftEither,
 -- | We're going to use the `mtl` ExceptT monad transformer to make the loading of
 -- our `Conf` a bit more straight-forward.
 import           Control.Monad.Except               (ExceptT (..), runExceptT)
+import Control.Lens
 
 -- | Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -86,7 +88,7 @@ runApplication = do
 prepareAppReqsWithConf :: String -> ExceptT StartUpError IO Env
 prepareAppReqsWithConf confFilePath = do
   conf       <- ExceptT (first ConfErr   <$> Conf.parseOptions confFilePath)
-  firstAppDb <- ExceptT (first DBInitErr <$> DB.initDB (dbFilePath $ conf))
+  firstAppDb <- ExceptT (first DBInitErr <$> DB.initDB (conf ^. dbFilePath))
   return $ Env envlog conf firstAppDb
   
 prepareAppReqs :: ExceptT StartUpError IO Env

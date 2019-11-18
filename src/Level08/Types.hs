@@ -23,6 +23,9 @@ module Level08.Types
   , confPortToWai
   , encodeComment
   , encodeTopic
+  , getDBFilePath
+  , port
+  , dbFilePath
   ) where
 
 import           System.IO.Error                    (IOError)
@@ -59,8 +62,8 @@ import           Level08.Types.CommentText          (CommentText,
 
 import           Level08.Types.Topic                (Topic, encodeTopic,
                                                      getTopic, mkTopic)
-                                                     
-import           Control.Lens                                                     
+
+import           Control.Lens
 
 newtype CommentId = CommentId Int
   deriving (Show)
@@ -76,8 +79,8 @@ data Comment = Comment
   }
   deriving Show
 
-makeLenses ''CommentId  
-makeLenses ''Comment  
+makeLenses ''CommentId
+makeLenses ''Comment
 makeLenses ''Topic
 
 encodeISO8601DateTime :: Applicative f => Encoder f UTCTime
@@ -132,21 +135,25 @@ renderContentType JSON      = "application/json"
 -- technique you choose is a matter for your specific needs and preference.
 --
 newtype Port = Port
-  { getPort :: Word16 }
+  { _getPort :: Word16 }
   deriving (Eq, Show)
 
 newtype DBFilePath = DBFilePath
-  { getDBFilePath :: FilePath }
+  { _getDBFilePath :: FilePath }
   deriving (Eq, Show)
 
 -- The ``Conf`` type will need:
 -- - A customisable port number: ``Port``
 -- - A filepath for our SQLite database: ``DBFilePath``
 data Conf = Conf
-  { port       :: Port
-  , dbFilePath :: DBFilePath
+  { _port       :: Port
+  , _dbFilePath :: DBFilePath
   }
   deriving Eq
+
+makeLenses ''Port
+makeLenses ''DBFilePath
+makeLenses ''Conf
 
 -- We're storing our Port as a Word16 to be more precise and prevent invalid
 -- values from being used in our application. However Wai is not so stringent.
@@ -155,8 +162,8 @@ data Conf = Conf
 confPortToWai
   :: Conf
   -> Int
-confPortToWai =
-  fromIntegral . getPort . port
+confPortToWai conf = fromIntegral (conf ^. port . getPort)
+  --fromIntegral . getPort . port
 
 -- Similar to when we were considering our application types, leave this empty
 -- for now and add to it as you go.

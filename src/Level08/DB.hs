@@ -28,12 +28,13 @@ import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 import           Level08.AppM                      (App, Env (envDB), ask, liftEither)
 
 import           Level08.Types                     (Comment, CommentText,
-                                                     DBFilePath (getDBFilePath),
+                                                     DBFilePath (..), getDBFilePath ,
                                                      Error (DBError),
                                                      FirstAppDB (FirstAppDB, dbConn),
                                                      Topic, fromDBComment,
                                                      getCommentText, getTopic,
                                                      mkTopic)
+import Control.Lens                                                     
 
 -- Quick helper to pull the connection and close it down.
 closeDB
@@ -49,7 +50,7 @@ initDB fp = Sql.runDBAction $ do
   -- Initialise the connection to the DB...
   -- - What could go wrong here?
   -- - What haven't we be told in the types?
-  con <- Sql.open ( getDBFilePath fp )
+  con <- Sql.open ( fp ^. getDBFilePath )
   -- Initialise our one table, if it's not there already
   _ <- Sql.execute_ con createTableQ
   pure $ FirstAppDB con
